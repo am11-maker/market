@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المتجر الرسمي | تسوق الآن</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Tajawal', sans-serif; }
+        body { background-color: #f8fafc; color: #1e293b; padding-bottom: 80px; }
+        
+        header { background: linear-gradient(135deg, #1e293b, #0f172a); color: white; text-align: center; padding: 30px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        header h1 { font-size: 2rem; margin-bottom: 5px; }
+        header p { color: #94a3b8; }
+
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 15px; }
+        .search-input { width: 100%; padding: 14px 16px; margin-bottom: 25px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 1rem; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        
+        .product-card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s; display: flex; flex-direction: column; }
+        .product-card:hover { transform: translateY(-5px); }
+        .product-card img { width: 100%; height: 240px; object-fit: cover; }
+        .product-info { padding: 20px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .price { font-size: 1.4rem; color: #16a34a; font-weight: 900; margin: 10px 0; }
+        .old-price { color: #dc2626; font-size: 1rem; text-decoration: line-through; margin-inline-start: 8px; }
+        .buy-btn { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
+        .buy-btn:hover { background: #1d4ed8; }
+
+        /* نافذة الطلب السريع (COD Modal) */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; padding: 15px; }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; width: 100%; max-width: 450px; }
+        .modal-content input, .modal-content select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
+        .total-box { background: #f1f5f9; padding: 12px; border-radius: 8px; margin: 10px 0; font-weight: bold; text-align: center; font-size: 1.1rem; }
+        .location-btn { background: #2563eb; margin: 8px 0 4px; }
+        .location-status { min-height: 22px; color: #16a34a; font-weight: bold; font-size: 0.9rem; }
+
+        /* زر وصندوق الدردشة العائم */
+        #chat-toggle { position: fixed; bottom: 20px; left: 20px; background: #16a34a; color: white; padding: 15px 20px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.4); border: none; font-size: 1rem; z-index: 999; }
+        #chat-widget { display: none; position: fixed; bottom: 80px; left: 20px; width: 320px; height: 420px; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); flex-direction: column; overflow: hidden; z-index: 999; border: 1px solid #e2e8f0; }
+        .chat-header { background: #16a34a; color: white; padding: 12px 15px; font-weight: bold; display: flex; justify-content: space-between; }
+        .chat-body { flex: 1; padding: 12px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 8px; }
+        .c-msg { padding: 8px 12px; border-radius: 10px; max-width: 80%; font-size: 0.9rem; }
+        .c-msg.client { background: #16a34a; color: white; align-self: flex-start; }
+        .c-msg.admin { background: #e2e8f0; color: #1e293b; align-self: flex-end; }
+        .chat-footer { display: flex; padding: 10px; border-top: 1px solid #eee; gap: 5px; background: white; }
+        .chat-footer input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+        .chat-footer button { padding: 8px 12px; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>مرحباً بك في متجرنا ✨</h1>
+        <p>الدفع عند الاستلام - توصيل سريع لـ 58 ولاية</p>
+    </header>
+
+    <div class="container">
+        <input type="search" id="product-search" class="search-input" placeholder="ابحث عن منتج بالاسم..." aria-label="ابحث عن منتج">
+        <div id="store-products" class="products-grid">
+            <p style="text-align: center; grid-column: 1/-1;">جاري تحميل المنتجات المتوفرة...</p>
+        </div>
+    </div>
+
+    <!-- نافذة إتمام الطلب -->
+    <div id="order-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-p-name" style="margin-bottom: 10px;">طلب المنتج</h3>
+            <input type="text" id="c-name" placeholder="الاسم الكامل">
+            <input type="tel" id="c-phone" placeholder="رقم الهاتف (مثال: 0550...)">
+            <input type="number" id="c-quantity" min="1" step="1" value="1" placeholder="الكمية" aria-label="الكمية" oninput="calcTotal()">
+            <select id="c-wilaya" onchange="calcTotal()">
+                <option value="">-- اختر ولايتك --</option>
+                <option value="01 - أدرار">01 - أدرار</option>
+                <option value="02 - الشلف">02 - الشلف</option>
+                <option value="03 - الأغواط">03 - الأغواط</option>
+                <option value="04 - أم البواقي">04 - أم البواقي</option>
+                <option value="05 - باتنة">05 - باتنة</option>
+                <option value="06 - بجاية">06 - بجاية</option>
+                <option value="07 - بسكرة">07 - بسكرة</option>
+                <option value="08 - بشار">08 - بشار</option>
+                <option value="09 - البليدة">09 - البليدة</option>
+                <option value="10 - البويرة">10 - البويرة</option>
+                <option value="11 - تمنراست">11 - تمنراست</option>
+                <option value="12 - تبسة">12 - تبسة</option>
+                <option value="13 - تلمسان">13 - تلمسان</option>
+                <option value="14 - تيارت">14 - تيارت</option>
+                <option value="15 - تيزي وزو">15 - تيزي وزو</option>
+                <option value="16 - الجزائر">16 - الجزائر</option>
+                <option value="17 - الجلفة">17 - الجلفة</option>
+                <option value="18 - جيجل">18 - جيجل</option>
+                <option value="19 - سطيف">19 - سطيف</option>
+                <option value="20 - سعيدة">20 - سعيدة</option>
+                <option value="21 - سكيكدة">21 - سكيكدة</option>
+                <option value="22 - سيدي بلعباس">22 - سيدي بلعباس</option>
+                <option value="23 - عنابة">23 - عنابة</option>
+                <option value="24 - قالمة">24 - قالمة</option>
+                <option value="25 - قسنطينة">25 - قسنطينة</option>
+                <option value="26 - المدية">26 - المدية</option>
+                <option value="27 - مستغانم">27 - مستغانم</option>
+                <option value="28 - المسيلة">28 - المسيلة</option>
+                <option value="29 - معسكر">29 - معسكر</option>
+                <option value="30 - ورقلة">30 - ورقلة</option>
+                <option value="31 - وهران">31 - وهران</option>
+                <option value="32 - البيض">32 - البيض</option>
+                <option value="33 - إليزي">33 - إليزي</option>
+                <option value="34 - برج بوعريريج">34 - برج بوعريريج</option>
+                <option value="35 - بومرداس">35 - بومرداس</option>
+                <option value="36 - الطارف">36 - الطارف</option>
+                <option value="37 - تندوف">37 - تندوف</option>
+                <option value="38 - تيسمسيلت">38 - تيسمسيلت</option>
+                <option value="39 - الوادي">39 - الوادي</option>
+                <option value="40 - خنشلة">40 - خنشلة</option>
+                <option value="41 - سوق أهراس">41 - سوق أهراس</option>
+                <option value="42 - تيبازة">42 - تيبازة</option>
+                <option value="43 - ميلة">43 - ميلة</option>
+                <option value="44 - عين الدفلى">44 - عين الدفلى</option>
+                <option value="45 - النعامة">45 - النعامة</option>
+                <option value="46 - عين تموشنت">46 - عين تموشنت</option>
+                <option value="47 - غرداية">47 - غرداية</option>
+                <option value="48 - غليزان">48 - غليزان</option>
+                <option value="49 - تيميمون">49 - تيميمون</option>
+                <option value="50 - برج باجي مختار">50 - برج باجي مختار</option>
+                <option value="51 - أولاد جلال">51 - أولاد جلال</option>
+                <option value="52 - بني عباس">52 - بني عباس</option>
+                <option value="53 - عين صالح">53 - عين صالح</option>
+                <option value="54 - عين قزام">54 - عين قزام</option>
+                <option value="55 - تقرت">55 - تقرت</option>
+                <option value="56 - جانت">56 - جانت</option>
+                <option value="57 - المغير">57 - المغير</option>
+                <option value="58 - المنيعة">58 - المنيعة</option>
+            </select>
+            <select id="c-delivery" onchange="calcTotal()">
+                <option value="400">توصيل للمكتب (Stop Desk) - 400 د.ج</option>
+                <option value="700">توصيل لباب المنزل - 700 د.ج</option>
+            </select>
+            <button type="button" class="buy-btn location-btn" id="get-location-btn">📍 إرسال موقعي الجغرافي (GPS) لتسهيل التوصيل</button>
+            <p id="location-status" class="location-status" aria-live="polite"></p>
+            <div class="total-box" id="total-price-box">المجموع: 0 د.ج</div>
+            <button class="buy-btn" id="confirm-order-btn" style="background:#16a34a; margin-bottom:8px;">تأكيد الطلب الآن ✅</button>
+            <button class="buy-btn" onclick="closeModal()" style="background:#94a3b8;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- الدردشة المباشرة مع الأدمن -->
+    <button id="chat-toggle" onclick="toggleChat()">💬 تواصل مع الأدمن</button>
+    <div id="chat-widget">
+        <div class="chat-header">
+            <span>خدمة الزبائن المباشرة</span>
+            <span style="cursor:pointer;" onclick="toggleChat()">✖</span>
+        </div>
+        <div class="chat-body" id="client-chat-body"></div>
+        <div class="chat-footer">
+            <input type="text" id="client-msg-input" placeholder="اكتب استفسارك هنا...">
+            <button id="client-send-btn">إرسال</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBIpoh9AnOtTZw91hfoy1_lJWCNlWWxlEU",
+            authDomain: "market-eb957.firebaseapp.com",
+            projectId: "market-eb957",
+            storageBucket: "market-eb957.firebasestorage.app",
+            messagingSenderId: "484891904287",
+            appId: "1:484891904287:web:0b3c53ac2f6b89cbd7482a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let selectedProduct = null;
+        let availableProducts = [];
+        let locationUrl = '';
+
+        // عرض المنتجات المتوفرة فقط في الوقت الفعلي
+        onSnapshot(collection(db, "products"), snap => {
+            availableProducts = [];
+            snap.forEach(d => {
+                const p = d.data();
+                if (!p.available) return;
+                availableProducts.push(p);
+            });
+            renderProducts();
+        });
+
+        function renderProducts() {
+            const grid = document.getElementById('store-products');
+            const searchTerm = document.getElementById('product-search').value.trim().toLocaleLowerCase('ar');
+            const filteredProducts = availableProducts.filter(p =>
+                String(p.name || '').toLocaleLowerCase('ar').includes(searchTerm)
+            );
+            grid.innerHTML = '';
+
+            filteredProducts.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                const image = document.createElement('img');
+                image.src = p.img || '';
+                image.alt = p.name || 'صورة المنتج';
+
+                const info = document.createElement('div');
+                info.className = 'product-info';
+                const description = document.createElement('div');
+                const name = document.createElement('h3');
+                name.textContent = p.name || '';
+                const desc = document.createElement('p');
+                desc.style.cssText = 'color:#64748b; font-size:0.9rem; margin-top:5px;';
+                desc.textContent = p.desc || '';
+                description.append(name, desc);
+
+                const purchase = document.createElement('div');
+                const price = document.createElement('div');
+                price.className = 'price';
+                price.append(`${p.price} د.ج`);
+                const oldPrice = Number(p.oldPrice);
+                if (p.oldPrice !== undefined && p.oldPrice !== null && Number.isFinite(oldPrice)) {
+                    const oldPriceLabel = document.createElement('span');
+                    oldPriceLabel.className = 'old-price';
+                    oldPriceLabel.textContent = `${oldPrice} د.ج`;
+                    price.appendChild(oldPriceLabel);
+                }
+                const buyButton = document.createElement('button');
+                buyButton.className = 'buy-btn';
+                buyButton.textContent = 'اطلب الآن 🛒';
+                buyButton.addEventListener('click', () => window.openOrder(p.name, Number(p.price)));
+                purchase.append(price, buyButton);
+                info.append(description, purchase);
+                card.append(image, info);
+                grid.appendChild(card);
+            });
+
+            if (filteredProducts.length === 0) {
+                const message = document.createElement('p');
+                message.style.cssText = 'text-align: center; grid-column: 1/-1;';
+                message.textContent = availableProducts.length === 0
+                    ? 'لا توجد منتجات معروضة حالياً. ترقبوا جديدنا قريباً!'
+                    : 'لا توجد منتجات تطابق بحثك.';
+                grid.appendChild(message);
+            }
+        }
+
+        document.getElementById('product-search').addEventListener('input', renderProducts);
+
+        // نظام الطلب السريع
+        window.openOrder = (name, price) => {
+            selectedProduct = { name, price };
+            locationUrl = '';
+            document.getElementById('c-quantity').value = '1';
+            document.getElementById('location-status').textContent = '';
+            document.getElementById('modal-p-name').innerText = `طلب: ${name}`;
+            document.getElementById('order-modal').style.display = 'flex';
+            window.calcTotal();
+        };
+
+        window.closeModal = () => document.getElementById('order-modal').style.display = 'none';
+
+        window.calcTotal = () => {
+            if (!selectedProduct) return;
+            const deliv = Number(document.getElementById('c-delivery').value);
+            const quantityInput = document.getElementById('c-quantity');
+            const quantity = Math.max(1, Math.floor(Number(quantityInput.value) || 1));
+            const total = selectedProduct.price * quantity + deliv;
+            document.getElementById('total-price-box').innerText = `المجموع الكلي (مع التوصيل): ${total} د.ج`;
+        };
+
+        document.getElementById('get-location-btn').onclick = () => {
+            const status = document.getElementById('location-status');
+            if (!navigator.geolocation) {
+                status.style.color = '#dc2626';
+                status.textContent = 'المتصفح لا يدعم تحديد الموقع الجغرافي.';
+                return;
+            }
+
+            status.style.color = '#64748b';
+            status.textContent = 'جارٍ تحديد موقعك...';
+            navigator.geolocation.getCurrentPosition(position => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+                status.style.color = '#16a34a';
+                status.textContent = 'تم تحديد موقعك بنجاح ✅';
+            }, error => {
+                locationUrl = '';
+                status.style.color = '#dc2626';
+                status.textContent = error.code === error.PERMISSION_DENIED
+                    ? 'لم يتم السماح بالوصول إلى الموقع. يمكنك إرسال الطلب بدونه.'
+                    : 'تعذر تحديد الموقع. يمكنك إرسال الطلب بدونه.';
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        };
+
+        document.getElementById('confirm-order-btn').onclick = async () => {
+            const clientName = document.getElementById('c-name').value.trim();
+            const phone = document.getElementById('c-phone').value.trim();
+            const wilaya = document.getElementById('c-wilaya').value;
+            const delivCost = Number(document.getElementById('c-delivery').value);
+            const quantity = Math.max(1, Math.floor(Number(document.getElementById('c-quantity').value) || 1));
+            const button = document.getElementById('confirm-order-btn');
+
+            if (!clientName || !phone || !wilaya) return alert("الرجاء ملء الاسم، رقم الهاتف، والولاية!");
+
+            button.disabled = true;
+            try {
+                const order = {
+                    productName: selectedProduct.name,
+                    quantity,
+                    totalPrice: selectedProduct.price * quantity + delivCost,
+                    clientName, phone, wilaya,
+                    deliveryType: delivCost === 400 ? "مكتب" : "منزل",
+                    status: "طلب جديد ⏳",
+                    createdAt: Date.now()
+                };
+                if (locationUrl) order.locationUrl = locationUrl;
+                await addDoc(collection(db, "orders"), order);
+
+                alert("تم إرسال طلبك بنجاح! سنتصل بك قريباً لتأكيد الطلب.");
+                document.getElementById('c-name').value = '';
+                document.getElementById('c-phone').value = '';
+                document.getElementById('c-wilaya').value = '';
+                document.getElementById('c-quantity').value = '1';
+                locationUrl = '';
+                closeModal();
+            } catch (err) {
+                console.error('تعذر إرسال الطلب:', err);
+                alert("تعذر إرسال الطلب. تحقق من الاتصال بالإنترنت ثم حاول مرة أخرى.");
+            } finally {
+                button.disabled = false;
+            }
+        };
+
+        // نظام الدردشة المباشرة للزبون
+        let sessionId = localStorage.getItem('chat_session_id');
+        let clientChatName = localStorage.getItem('chat_client_name');
+        if (!sessionId) {
+            sessionId = 'user_' + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem('chat_session_id', sessionId);
+        }
+
+        window.toggleChat = () => {
+            const w = document.getElementById('chat-widget');
+            w.style.display = w.style.display === 'flex' ? 'none' : 'flex';
+            if (!clientChatName && w.style.display === 'flex') {
+                clientChatName = prompt("مرحباً بك! ما هو اسمك الكريم لنتحدث معك؟") || "زبون";
+                localStorage.setItem('chat_client_name', clientChatName);
+            }
+        };
+
+        onSnapshot(query(collection(db, "chats"), orderBy("createdAt", "asc")), snap => {
+            const box = document.getElementById('client-chat-body');
+            box.innerHTML = '';
+            snap.forEach(d => {
+                const m = d.data();
+                if (m.sessionId !== sessionId) return;
+                const div = document.createElement('div');
+                div.className = 'c-msg ' + (m.sender === 'client' ? 'client' : 'admin');
+                div.innerText = m.text;
+                box.appendChild(div);
+            });
+            box.scrollTop = box.scrollHeight;
+        });
+
+        document.getElementById('client-send-btn').onclick = async () => {
+            const input = document.getElementById('client-msg-input');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            await addDoc(collection(db, "chats"), {
+                sessionId,
+                clientName: clientChatName || "زبون",
+                sender: "client",
+                text,
+                createdAt: Date.now()
+            });
+        };
+    </script>
+</body>
+</html>
