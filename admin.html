@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الأدمن | متجري</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Tajawal', sans-serif; }
+        body { background-color: #f0f2f5; color: #333; }
+        
+        /* شاشة تسجيل الدخول */
+        #login-screen { height: 100vh; display: flex; justify-content: center; align-items: center; background: #1e293b; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .login-box h2 { margin-bottom: 20px; color: #1e293b; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+        button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #1d4ed8; }
+        .btn-danger { background: #dc2626; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-success { background: #16a34a; }
+        .btn-success:hover { background: #15803d; }
+
+        /* لوحة التحكم */
+        #dashboard { display: none; }
+        header { background: #1e293b; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .tabs { display: flex; background: white; padding: 10px 30px; gap: 15px; border-bottom: 2px solid #e2e8f0; }
+        .tab-btn { width: auto; background: transparent; color: #64748b; padding: 10px 20px; border-radius: 6px; }
+        .tab-btn.active { background: #2563eb; color: white; }
+        
+        .container { padding: 30px; max-width: 1200px; margin: 0 auto; }
+        .section { display: none; }
+        .section.active { display: block; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 25px; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+        
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .product-item, .order-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; gap: 15px; flex-wrap: wrap; }
+        .product-item img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
+        .badge { padding: 5px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+        .badge-avail { background: #dcfce7; color: #166534; }
+        .badge-unavail { background: #fee2e2; color: #991b1b; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-right: 4px solid #2563eb; }
+        .stat-card h3 { color: #64748b; font-size: 1rem; margin-bottom: 8px; }
+        .stat-card strong { color: #1e293b; font-size: 1.5rem; }
+        .stock-control { display: flex; align-items: center; gap: 6px; }
+        .stock-control input { width: 90px; margin: 0; padding: 7px; }
+        .stock-control button { width: auto; padding: 7px 10px; }
+
+        /* الدردشة */
+        .chat-layout { display: grid; grid-template-columns: 300px 1fr; height: 550px; min-height: 0; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .chat-users { border-left: 1px solid #eee; overflow-y: auto; background: #f8fafc; min-height: 0; }
+        .chat-user-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .chat-user-item.active, .chat-user-item:hover { background: #eff6ff; font-weight: bold; }
+        .chat-box { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+        .chat-messages { flex: 1; max-height: 450px; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f1f5f9; }
+        .msg { max-width: 70%; padding: 10px 15px; border-radius: 12px; font-size: 0.95rem; }
+        .msg.admin { background: #2563eb; color: white; align-self: flex-start; }
+        .msg.client { background: white; color: #333; align-self: flex-end; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .chat-input { display: flex; padding: 15px; background: white; border-top: 1px solid #eee; gap: 10px; position: sticky; bottom: 0; }
+        .chat-input input { margin: 0; }
+        .chat-input button { width: 120px; }
+    </style>
+</head>
+<body>
+
+    <!-- شاشة تسجيل الدخول -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>دخول الأدمن فقط 🔒</h2>
+            <input type="email" id="email" placeholder="البريد الإلكتروني">
+            <input type="password" id="password" placeholder="كلمة المرور">
+            <button id="login-btn">تسجيل الدخول</button>
+            <p id="login-error" style="color: red; margin-top: 10px; font-size: 0.9rem;"></p>
+        </div>
+    </div>
+
+    <!-- لوحة التحكم -->
+    <div id="dashboard">
+        <header>
+            <h2>لوحة تحكم المتجر 🛒</h2>
+            <button id="logout-btn" class="btn-danger" style="width: auto; padding: 8px 15px;">خروج</button>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('products-sec', this)">📦 المنتجات</button>
+            <button class="tab-btn" onclick="switchTab('orders-sec', this)">📋 الطلبيات (<span id="orders-count">0</span>)</button>
+            <button class="tab-btn" onclick="switchTab('chat-sec', this)">💬 رسائل الزبائن</button>
+        </div>
+
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>الطلبيات الجديدة قيد الانتظار</h3>
+                    <strong id="pending-orders-stat">0</strong>
+                </div>
+                <div class="stat-card">
+                    <h3>الطلبيات المؤكدة</h3>
+                    <strong id="confirmed-orders-stat">0</strong>
+                </div>
+                <div class="stat-card">
+                    <h3>إجمالي المبيعات المؤكدة</h3>
+                    <strong id="confirmed-sales-stat">0 د.ج</strong>
+                </div>
+            </div>
+            <!-- قسم المنتجات -->
+            <div id="products-sec" class="section active">
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>إضافة منتج جديد</h3>
+                        <input type="text" id="p-name" placeholder="اسم المنتج (مثال: ساعة ذكية)">
+                        <input type="number" id="p-price" placeholder="السعر بالدينار (مثال: 3500)">
+                        <input type="number" id="p-old-price" min="0" step="0.01" placeholder="السعر قبل التخفيض (اختياري)">
+                        <label for="p-stock">الكمية المتوفرة في المخزون (Stock) *</label>
+                        <input type="number" id="p-stock" min="0" step="1" required placeholder="الكمية المتوفرة">
+                        <input type="file" id="p-img-file" accept="image/*" multiple>
+                        <small>يمكن اختيار حتى 3 صور؛ تُحفظ بصيغة Base64.</small>
+                        <input type="text" id="p-variants" placeholder="المقاسات أو الألوان (مفصولة بفاصلة، اختياري)">
+                        <textarea id="p-desc" rows="3" placeholder="وصف المنتج ومميزاته..."></textarea>
+                        <button id="add-product-btn" class="btn-success">نشر المنتج في المتجر</button>
+                    </div>
+                    <div class="card">
+                        <h3>المنتجات المعروضة حالياً</h3>
+                        <div id="products-list">جاري التحميل...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم الطلبيات -->
+            <div id="orders-sec" class="section">
+                <div class="card">
+                    <h3>طلبيات الزبائن المباشرة</h3>
+                    <div id="orders-list">لا توجد طلبيات حالياً.</div>
+                </div>
+            </div>
+
+            <!-- قسم الدردشة -->
+            <div id="chat-sec" class="section">
+                <div class="chat-layout">
+                    <div class="chat-users" id="chat-users-list">
+                        <p style="padding: 15px; color: #888;">لا توجد محادثات</p>
+                    </div>
+                    <div class="chat-box">
+                        <div class="chat-messages" id="chat-messages-box">
+                            <p style="text-align: center; color: #888; margin-top: 50px;">اختر زبوناً من القائمة على اليمين للرد عليه</p>
+                        </div>
+                        <div class="chat-input">
+                            <input type="text" id="admin-msg-input" placeholder="اكتب ردك هنا...">
+                            <button id="admin-send-btn">إرسال</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBIpoh9AnOtTZw91hfoy1_lJWCNlWWxlEU",
+            authDomain: "market-eb957.firebaseapp.com",
+            projectId: "market-eb957",
+            storageBucket: "market-eb957.firebasestorage.app",
+            messagingSenderId: "484891904287",
+            appId: "1:484891904287:web:0b3c53ac2f6b89cbd7482a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // تنبيه صوتي بسيط عند وصول طلب أو رسالة
+        const playBeep = () => {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            osc.frequency.value = 600;
+            osc.connect(ctx.destination);
+            osc.start();
+            setTimeout(() => osc.stop(), 150);
+        };
+
+        // إدارة تسجيل الدخول
+        document.getElementById('login-btn').onclick = () => {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            signInWithEmailAndPassword(auth, email, pass).catch(err => {
+                document.getElementById('login-error').innerText = "خطأ في البريد أو كلمة المرور!";
+            });
+        };
+
+        document.getElementById('logout-btn').onclick = () => signOut(auth);
+
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                initAdminData();
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('dashboard').style.display = 'none';
+            }
+        });
+
+        // إضافة منتج
+        document.getElementById('add-product-btn').onclick = async () => {
+            const name = document.getElementById('p-name').value.trim();
+            const price = Number(document.getElementById('p-price').value);
+            const oldPriceValue = document.getElementById('p-old-price').value;
+            const imageFiles = Array.from(document.getElementById('p-img-file').files);
+            const stock = Number(document.getElementById('p-stock').value);
+            const variants = document.getElementById('p-variants').value.split(',').map(value => value.trim()).filter(Boolean);
+            const desc = document.getElementById('p-desc').value;
+            const button = document.getElementById('add-product-btn');
+
+            if (!name || !Number.isFinite(price) || price <= 0) return alert("الرجاء إدخال اسم المنتج وسعر صحيح!");
+            if (!Number.isInteger(stock) || stock < 0 || document.getElementById('p-stock').value === '') {
+                return alert("الرجاء إدخال كمية صحيحة للمخزون (صفر أو أكثر).");
+            }
+            if (imageFiles.length > 3) return alert("يمكن رفع 3 صور كحد أقصى للمنتج.");
+            if (oldPriceValue && (!Number.isFinite(Number(oldPriceValue)) || Number(oldPriceValue) <= price)) {
+                return alert("يجب أن يكون السعر قبل التخفيض أكبر من السعر الحالي.");
+            }
+
+            button.disabled = true;
+            try {
+                const images = imageFiles.length
+                    ? await Promise.all(imageFiles.map(imageFile => new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            if (typeof reader.result === 'string') {
+                                resolve(reader.result);
+                            } else {
+                                reject(new Error('تعذر قراءة الصورة المحددة.'));
+                            }
+                        };
+                        reader.onerror = () => reject(reader.error || new Error('تعذر قراءة الصورة المحددة.'));
+                        reader.readAsDataURL(imageFile);
+                    })))
+                    : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500'];
+
+                const product = {
+                    name, price, img: images[0], images, desc, stock, variants,
+                    available: stock > 0, createdAt: Date.now()
+                };
+                if (oldPriceValue) product.oldPrice = Number(oldPriceValue);
+                await addDoc(collection(db, "products"), product);
+
+                document.getElementById('p-name').value = '';
+                document.getElementById('p-price').value = '';
+                document.getElementById('p-old-price').value = '';
+                document.getElementById('p-stock').value = '';
+                document.getElementById('p-img-file').value = '';
+                document.getElementById('p-variants').value = '';
+                document.getElementById('p-desc').value = '';
+            } catch (err) {
+                console.error('تعذر إضافة المنتج:', err);
+                alert("تعذر إضافة المنتج. تحقق من الصورة والاتصال بالإنترنت ثم حاول مرة أخرى.");
+            } finally {
+                button.disabled = false;
+            }
+        };
+
+        let activeChatSession = null;
+        let allMessages = [];
+
+        function getAlgerianWhatsAppNumber(phone) {
+            let digits = String(phone || '').replace(/\D/g, '');
+            if (digits.startsWith('00')) digits = digits.slice(2);
+            if (digits.startsWith('213')) digits = digits.slice(3);
+            if (digits.startsWith('0')) digits = digits.slice(1);
+            return /^[567]\d{8}$/.test(digits) ? `213${digits}` : null;
+        }
+
+        async function confirmOrderAndDeductStock(orderId) {
+            await runTransaction(db, async transaction => {
+                const orderRef = doc(db, "orders", orderId);
+                const orderSnap = await transaction.get(orderRef);
+                if (!orderSnap.exists()) throw new Error("الطلبية غير موجودة.");
+                const order = orderSnap.data();
+                if (order.stockDeducted || order.status === "تم التأكيد والإرسال ✅") return;
+                if (!order.productId) throw new Error("لا يوجد معرف منتج مرتبط بهذه الطلبية.");
+
+                const productRef = doc(db, "products", order.productId);
+                const productSnap = await transaction.get(productRef);
+                if (!productSnap.exists()) throw new Error("المنتج المرتبط بالطلبية غير موجود.");
+
+                const quantity = Number(order.quantity === undefined ? 1 : order.quantity);
+                const stock = Number(productSnap.data().stock);
+                if (!Number.isInteger(quantity) || quantity < 1 || !Number.isInteger(stock) || stock < 0) {
+                    throw new Error("بيانات الكمية أو المخزون غير صالحة.");
+                }
+                if (stock < quantity) throw new Error("المخزون المتوفر لا يكفي لتأكيد هذه الطلبية.");
+
+                const remainingStock = Math.max(0, stock - quantity);
+                transaction.update(productRef, {
+                    stock: remainingStock,
+                    available: remainingStock > 0 && productSnap.data().available !== false
+                });
+                transaction.update(orderRef, {
+                    status: "تم التأكيد والإرسال ✅",
+                    stockDeducted: true
+                });
+            });
+        }
+
+        async function restoreOrderStock(orderId) {
+            await runTransaction(db, async transaction => {
+                const orderRef = doc(db, "orders", orderId);
+                const orderSnap = await transaction.get(orderRef);
+                if (!orderSnap.exists()) throw new Error("الطلبية غير موجودة.");
+                const order = orderSnap.data();
+                if (!order.stockDeducted) return;
+                if (!order.productId) throw new Error("لا يوجد معرف منتج مرتبط بهذه الطلبية.");
+
+                const productRef = doc(db, "products", order.productId);
+                const productSnap = await transaction.get(productRef);
+                if (!productSnap.exists()) throw new Error("المنتج المرتبط بالطلبية غير موجود.");
+                const quantity = Number(order.quantity === undefined ? 1 : order.quantity);
+                const stock = Number(productSnap.data().stock);
+                if (!Number.isInteger(quantity) || quantity < 1 || !Number.isInteger(stock) || stock < 0) {
+                    throw new Error("بيانات الكمية أو المخزون غير صالحة.");
+                }
+
+                transaction.update(productRef, { stock: stock + quantity, available: true });
+                transaction.update(orderRef, {
+                    status: "ملغي وتم استرجاع المخزون ↩️",
+                    stockDeducted: false,
+                    stockRestored: true
+                });
+            });
+        }
+
+        function initAdminData() {
+            // 1. مراقبة المنتجات
+            onSnapshot(query(collection(db, "products"), orderBy("createdAt", "desc")), snap => {
+                const list = document.getElementById('products-list');
+                list.innerHTML = '';
+                snap.forEach(d => {
+                    const p = d.data();
+                    const div = document.createElement('div');
+                    div.className = 'product-item';
+                    const productInfo = document.createElement('div');
+                    productInfo.style.cssText = 'display:flex; align-items:center; gap:12px;';
+                    const image = document.createElement('img');
+                    image.src = p.img || (p.images && p.images[0]) || '';
+                    image.alt = p.name || 'صورة المنتج';
+                    const details = document.createElement('div');
+                    const name = document.createElement('h4');
+                    name.textContent = `${p.name || ''} - ${p.price} د.ج${p.oldPrice ? ` (قبل التخفيض: ${p.oldPrice} د.ج)` : ''}`;
+                    const stockLabel = document.createElement('p');
+                    stockLabel.textContent = `المخزون المتبقي: ${Number(p.stock) || 0} قطعة`;
+                    const availability = document.createElement('span');
+                    availability.className = `badge ${p.available && Number(p.stock) > 0 ? 'badge-avail' : 'badge-unavail'}`;
+                    availability.textContent = p.available && Number(p.stock) > 0 ? 'متوفر للزبائن' : 'مخفي / نفذت الكمية';
+                    details.append(name, stockLabel, availability);
+                    productInfo.append(image, details);
+
+                    const actions = document.createElement('div');
+                    actions.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; align-items:center;';
+                    const stockControl = document.createElement('div');
+                    stockControl.className = 'stock-control';
+                    const stockInput = document.createElement('input');
+                    stockInput.type = 'number';
+                    stockInput.min = '0';
+                    stockInput.step = '1';
+                    stockInput.value = String(Number(p.stock) || 0);
+                    stockInput.setAttribute('aria-label', `مخزون ${p.name || 'المنتج'}`);
+                    const saveStockButton = document.createElement('button');
+                    saveStockButton.type = 'button';
+                    saveStockButton.textContent = 'حفظ المخزون';
+                    saveStockButton.addEventListener('click', async () => {
+                        const stock = Number(stockInput.value);
+                        if (!Number.isInteger(stock) || stock < 0) return alert('أدخل كمية صحيحة (صفر أو أكثر).');
+                        saveStockButton.disabled = true;
+                        try {
+                            await updateDoc(doc(db, "products", d.id), { stock, available: stock > 0 });
+                        } catch (err) {
+                            console.error('تعذر تحديث المخزون:', err);
+                            alert('تعذر تحديث المخزون. حاول مرة أخرى.');
+                        } finally {
+                            saveStockButton.disabled = false;
+                        }
+                    });
+                    stockControl.append(stockInput, saveStockButton);
+
+                    const toggleButton = document.createElement('button');
+                    toggleButton.type = 'button';
+                    toggleButton.style.cssText = 'width:auto; padding:6px 12px; font-size:0.85rem;';
+                    toggleButton.textContent = p.available ? 'إخفاء' : 'إظهار';
+                    toggleButton.addEventListener('click', async () => {
+                        if (!p.available && Number(p.stock) <= 0) return alert('لا يمكن إظهار منتج دون مخزون.');
+                        try {
+                            await updateDoc(doc(db, "products", d.id), { available: !p.available });
+                        } catch (err) {
+                            console.error('تعذر تغيير توفر المنتج:', err);
+                            alert('تعذر تغيير توفر المنتج. حاول مرة أخرى.');
+                        }
+                    });
+                    const deleteButton = document.createElement('button');
+                    deleteButton.type = 'button';
+                    deleteButton.className = 'btn-danger';
+                    deleteButton.style.cssText = 'width:auto; padding:6px 12px; font-size:0.85rem;';
+                    deleteButton.textContent = 'حذف';
+                    deleteButton.addEventListener('click', () => window.deleteProduct(d.id));
+                    actions.append(stockControl, toggleButton, deleteButton);
+                    div.append(productInfo, actions);
+                    list.appendChild(div);
+                });
+            });
+
+            // 2. مراقبة الطلبيات
+            onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")), snap => {
+                const list = document.getElementById('orders-list');
+                document.getElementById('orders-count').innerText = snap.size;
+                list.innerHTML = '';
+                let pendingCount = 0;
+                let confirmedCount = 0;
+                let confirmedSales = 0;
+                snap.forEach(d => {
+                    const o = d.data();
+                    if (o.status === "تم التأكيد والإرسال ✅") {
+                        confirmedCount += 1;
+                        confirmedSales += Number(o.totalPrice) || 0;
+                    } else if (o.status === "طلب جديد ⏳") {
+                        pendingCount += 1;
+                    }
+                    const div = document.createElement('div');
+                    div.className = 'order-item';
+                    const details = document.createElement('div');
+                    const product = document.createElement('h4');
+                    product.textContent = `🛍️ المنتج: ${o.productName} (الكمية: ${o.quantity || 1}${o.variant ? ` | الاختيار: ${o.variant}` : ''} | الإجمالي: ${o.totalPrice} د.ج)`;
+                    const customer = document.createElement('p');
+                    customer.textContent = `👤 الزبون: ${o.clientName} | 📞 الهاتف: ${o.phone}`;
+                    const orderInfo = document.createElement('p');
+                    orderInfo.textContent = `📍 الولاية: ${o.wilaya} (${o.deliveryType}) | الحالة: ${o.status}`;
+                    details.append(product, customer, orderInfo);
+
+                    const actions = document.createElement('div');
+                    actions.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap;';
+
+                    const chatButton = document.createElement('button');
+                    chatButton.className = 'btn-success';
+                    chatButton.style.cssText = 'width:auto; padding:6px 12px;';
+                    chatButton.textContent = '💬 بدء دردشة في الموقع';
+                    chatButton.addEventListener('click', () => openCustomerChatFromOrder(o.sessionId || null, o.clientName || 'زبون'));
+                    actions.appendChild(chatButton);
+
+                    if (typeof o.locationUrl === 'string' && /^https:\/\/www\.google\.com\/maps\?q=/i.test(o.locationUrl)) {
+                        const mapButton = document.createElement('button');
+                        mapButton.textContent = '🗺️ فتح موقع الزبون على الخريطة';
+                        mapButton.style.cssText = 'width:auto; padding:6px 12px; background:#2563eb;';
+                        mapButton.addEventListener('click', () => window.open(o.locationUrl, '_blank', 'noopener,noreferrer'));
+                        actions.appendChild(mapButton);
+                    }
+
+                    const whatsappButton = document.createElement('button');
+                    whatsappButton.className = 'btn-success';
+                    whatsappButton.style.cssText = 'width:auto; padding:6px 12px;';
+                    whatsappButton.textContent = '💬 واتساب';
+                    whatsappButton.addEventListener('click', () => {
+                        const whatsappNumber = getAlgerianWhatsAppNumber(o.phone);
+                        if (!whatsappNumber) {
+                            alert('رقم الهاتف غير صالح كرقم جوال جزائري.');
+                            return;
+                        }
+                        const message = `السلام عليكم ${o.clientName}، نؤكد استلام طلبكم للمنتج ${o.productName} بكمية ${o.quantity || 1}. إجمالي الطلب ${o.totalPrice} د.ج.`;
+                        window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+                    });
+                    actions.appendChild(whatsappButton);
+
+                    if (o.stockDeducted) {
+                        const restoreButton = document.createElement('button');
+                        restoreButton.className = 'btn-danger';
+                        restoreButton.style.cssText = 'width:auto; padding:6px 12px;';
+                        restoreButton.textContent = '↩️ إلغاء واسترجاع للمخزون';
+                        restoreButton.addEventListener('click', async () => {
+                            restoreButton.disabled = true;
+                            try {
+                                await restoreOrderStock(d.id);
+                            } catch (err) {
+                                console.error('تعذر استرجاع المخزون:', err);
+                                alert(err.message || 'تعذر استرجاع المخزون.');
+                            } finally {
+                                restoreButton.disabled = false;
+                            }
+                        });
+                        actions.appendChild(restoreButton);
+                    } else if (o.status !== "تم التأكيد والإرسال ✅") {
+                        const confirmButton = document.createElement('button');
+                        confirmButton.className = 'btn-success';
+                        confirmButton.style.cssText = 'width:auto; padding:6px 12px;';
+                        confirmButton.textContent = 'تأكيد الإرسال ✅';
+                        confirmButton.addEventListener('click', async () => {
+                            confirmButton.disabled = true;
+                            try {
+                                await confirmOrderAndDeductStock(d.id);
+                            } catch (err) {
+                                console.error('تعذر تأكيد الطلبية وخصم المخزون:', err);
+                                alert(err.message || 'تعذر تأكيد الطلبية وخصم المخزون.');
+                            } finally {
+                                confirmButton.disabled = false;
+                            }
+                        });
+                        actions.appendChild(confirmButton);
+                    } else {
+                        const legacyConfirmed = document.createElement('span');
+                        legacyConfirmed.className = 'badge badge-avail';
+                        legacyConfirmed.textContent = 'مؤكدة سابقاً (لا يوجد خصم مخزون مسجل)';
+                        actions.appendChild(legacyConfirmed);
+                    }
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'btn-danger';
+                    deleteButton.style.cssText = 'width:auto; padding:6px 12px;';
+                    deleteButton.textContent = 'حذف';
+                    deleteButton.addEventListener('click', async () => {
+                        deleteButton.disabled = true;
+                        try {
+                            if (o.stockDeducted) await restoreOrderStock(d.id);
+                            await window.deleteOrder(d.id);
+                        } catch (err) {
+                            console.error('تعذر حذف الطلبية:', err);
+                            alert(err.message || 'تعذر حذف الطلبية.');
+                        } finally {
+                            deleteButton.disabled = false;
+                        }
+                    });
+                    actions.appendChild(deleteButton);
+
+                    div.append(details, actions);
+                    list.appendChild(div);
+                });
+                document.getElementById('pending-orders-stat').textContent = String(pendingCount);
+                document.getElementById('confirmed-orders-stat').textContent = String(confirmedCount);
+                document.getElementById('confirmed-sales-stat').textContent = `${confirmedSales.toLocaleString('ar-DZ')} د.ج`;
+            });
+
+            // 3. مراقبة الدردشة المباشرة
+            onSnapshot(query(collection(db, "chats"), orderBy("createdAt", "asc")), snap => {
+                allMessages = [];
+                const sessions = {};
+                snap.forEach(d => {
+                    const m = d.data();
+                    allMessages.push(m);
+                    if (m.sender === 'client' && m.clientName) {
+                        sessions[m.sessionId] = m.clientName;
+                    } else if (m.sessionId && !sessions[m.sessionId]) {
+                        sessions[m.sessionId] = m.clientName || 'زائر';
+                    }
+                });
+                renderChatUsers(sessions);
+                if (activeChatSession) renderChatMessages(activeChatSession);
+            });
+        }
+
+        function openCustomerChatFromOrder(sessionId, customerName) {
+            if (!sessionId) {
+                alert('لا يوجد جلسة دردشة مرتبطة بهذا الطلب.');
+                return;
+            }
+            const chatTab = document.querySelector(".tab-btn[onclick*=chat-sec]");
+            if (chatTab) {
+                activeChatSession = sessionId;
+                window.switchTab('chat-sec', chatTab);
+                const sessions = {};
+                allMessages.forEach(msg => {
+                    if (!msg.sessionId) return;
+                    if (msg.sender === 'client' && msg.clientName) {
+                        sessions[msg.sessionId] = msg.clientName;
+                    } else if (!sessions[msg.sessionId]) {
+                        sessions[msg.sessionId] = msg.clientName || 'زائر';
+                    }
+                });
+                if (customerName && customerName !== 'زبون') sessions[sessionId] = customerName;
+                renderChatUsers(sessions);
+                renderChatMessages(sessionId);
+            }
+        }
+
+        function renderChatUsers(sessions) {
+            const usersDiv = document.getElementById('chat-users-list');
+            usersDiv.innerHTML = '<button type="button" id="new-chat-btn" style="width:auto; padding:8px 12px; margin:12px 12px 0; background:#0f172a; border-radius:8px; font-size:0.9rem;">+ محادثة جديدة</button>';
+            const newChatBtn = document.getElementById('new-chat-btn');
+            newChatBtn.onclick = () => {
+                const sessionId = prompt('أدخل معرف الجلسة أو اسم الزبون؟') || '';
+                if (!sessionId) return;
+                activeChatSession = sessionId;
+                const sessionsCopy = { ...sessions, [sessionId]: sessions[sessionId] || 'زبون جديد' };
+                renderChatUsers(sessionsCopy);
+                renderChatMessages(sessionId);
+            };
+            Object.keys(sessions).forEach(sId => {
+                const div = document.createElement('div');
+                div.className = 'chat-user-item ' + (activeChatSession === sId ? 'active' : '');
+                div.innerText = `👤 ${sessions[sId]}`;
+                div.onclick = () => {
+                    activeChatSession = sId;
+                    renderChatUsers(sessions);
+                    renderChatMessages(sId);
+                };
+                usersDiv.appendChild(div);
+            });
+        }
+
+        function renderChatMessages(sId) {
+            const box = document.getElementById('chat-messages-box');
+            box.innerHTML = '';
+            allMessages.filter(m => m.sessionId === sId).forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'msg ' + (m.sender === 'admin' ? 'admin' : 'client');
+                div.innerText = m.text;
+                box.appendChild(div);
+            });
+            box.scrollTop = box.scrollHeight;
+        }
+
+        document.getElementById('admin-send-btn').onclick = async () => {
+            const input = document.getElementById('admin-msg-input');
+            const text = input.value.trim();
+            if (!text || !activeChatSession) return;
+            input.value = '';
+            await addDoc(collection(db, "chats"), {
+                sessionId: activeChatSession,
+                clientName: 'الأدمن',
+                sender: "admin",
+                text: text,
+                createdAt: Date.now()
+            });
+        };
+
+        // دوال عامة للأزرار
+        window.toggleProduct = (id, current) => updateDoc(doc(db, "products", id), { available: !current });
+        window.deleteProduct = (id) => deleteDoc(doc(db, "products", id));
+        window.updateOrder = (id, status) => updateDoc(doc(db, "orders", id), { status });
+        window.deleteOrder = (id) => deleteDoc(doc(db, "orders", id));
+        window.switchTab = (secId, btn) => {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(secId).classList.add('active');
+            btn.classList.add('active');
+        };
+    </script>
+</body>
+</html>
